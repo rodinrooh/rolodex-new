@@ -24,3 +24,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Invisible React Flow handles: keep them in the DOM so edges still work */
+.rf-invisible-handle.react-flow__handle {
+  opacity: 0;
+  visibility: hidden;
+  background: transparent;
+  border: none;
+  width: 10px;
+  height: 10px;
+  pointer-events: none; /* we're not using interactive connections */
+}
