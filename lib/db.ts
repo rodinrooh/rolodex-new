@@ -70,6 +70,34 @@ export async function getEventsForPeople(personIds: string[]): Promise<Event[]> 
   return data || [];
 }
 
+export async function deleteEvent(eventId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from("events")
+    .delete()
+    .eq("id", eventId);
+
+  if (error) {
+    console.error("Error deleting event:", error);
+    return false;
+  }
+
+  return true;
+}
+
+export async function deletePerson(personId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from("people")
+    .delete()
+    .eq("id", personId);
+
+  if (error) {
+    console.error("Error deleting person:", error);
+    return false;
+  }
+
+  return true;
+}
+
 // Calculate line color based on events for a person
 export function calculateLineColor(events: Event[]): string {
   if (events.length === 0) {

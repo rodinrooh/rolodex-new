@@ -1011,6 +1011,10 @@ export default function Home() {
         person={selectedPerson}
         onClose={() => setSelectedPerson(null)}
         onEventAdded={handleSavePerson}
+        onPersonDeleted={() => {
+          setSelectedPerson(null);
+          loadPeople();
+        }}
       />
     </div>
   );
