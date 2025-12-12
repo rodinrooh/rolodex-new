@@ -989,7 +989,7 @@ export default function Home() {
       {/* Floating + button */}
       <button
         onClick={handleAddClick}
-        className="fixed bottom-8 right-8 h-14 w-14 rounded-full bg-black text-white text-2xl font-light flex items-center justify-center shadow-lg hover:bg-gray-800 transition-colors z-10"
+        className="fixed bottom-8 right-8 h-14 w-14 rounded-full bg-red-600 text-white text-2xl font-light flex items-center justify-center shadow-lg hover:bg-red-700 transition-colors z-10"
         aria-label="Add connection"
       >
         +
