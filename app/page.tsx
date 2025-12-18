@@ -31,6 +31,23 @@ type PersonNodeData = {
   gradientTo?: string;
 };
 
+function getTwoLetterInitials(name: string | null | undefined): string {
+  const cleaned = (name ?? "").trim();
+  if (!cleaned) return "?";
+
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const first = Array.from(parts[0] ?? "")[0] ?? "";
+    const second = Array.from(parts[1] ?? "")[0] ?? "";
+    const initials = `${first}${second}`.trim();
+    return (initials || "?").toUpperCase();
+  }
+
+  const chars = Array.from(parts[0] ?? "");
+  const initials = `${chars[0] ?? ""}${chars[1] ?? ""}`.trim();
+  return (initials || "?").toUpperCase();
+}
+
 // Custom circular node component with invisible handles
 function PersonCircleNode({ data, selected }: NodeProps<PersonNodeData>) {
   const { label, isUser } = data;
@@ -87,7 +104,7 @@ function PersonCircleNode({ data, selected }: NodeProps<PersonNodeData>) {
 
       <div
         className={[
-          "flex h-[50px] w-[50px] items-center justify-center rounded-full text-base font-semibold",
+          "flex h-[50px] w-[50px] select-none items-center justify-center rounded-full text-[15px] font-semibold leading-none tracking-tight",
           isUser
             ? "bg-gradient-to-br from-indigo-500 to-purple-500 text-white shadow-lg"
             : data.gradientFrom && data.gradientTo
@@ -123,7 +140,7 @@ const fallbackNodes: Node<PersonNodeData>[] = [
     id: "fallback-user-center",
     type: "person",
     position: { x: 0, y: 0 },
-    data: { label: "U", isUser: true },
+    data: { label: "US", isUser: true },
     draggable: false,
   },
 ];
@@ -400,10 +417,11 @@ export default function Home() {
 
     // If nodes are empty, create at least the center user node.
     if (nodes.length === 0) {
-      const userInitial =
-        user.firstName?.[0]?.toUpperCase() ||
-        user.emailAddresses[0]?.emailAddress[0]?.toUpperCase() ||
-        "U";
+      const userNameForInitials =
+        [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+        user.emailAddresses?.[0]?.emailAddress ||
+        "User";
+      const userInitial = getTwoLetterInitials(userNameForInitials);
 
       const centerNode: Node<PersonNodeData> = {
         id: "user-center",
@@ -507,10 +525,11 @@ export default function Home() {
 
       // ---- Center user node ----
       const existingCenter = prevById.get("user-center");
-      const userInitial =
-        user.firstName?.[0]?.toUpperCase() ||
-        user.emailAddresses[0]?.emailAddress[0]?.toUpperCase() ||
-        "U";
+      const userNameForInitials =
+        [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+        user.emailAddresses?.[0]?.emailAddress ||
+        "User";
+      const userInitial = getTwoLetterInitials(userNameForInitials);
 
       const userNode: Node<PersonNodeData> =
         existingCenter != null
@@ -588,6 +607,7 @@ export default function Home() {
                 position,
                 data: {
                   ...(existing.data as PersonNodeData),
+                  label: getTwoLetterInitials(person.name),
                   person,
                   gradientFrom: gradient.from,
                   gradientTo: gradient.to,
@@ -598,7 +618,7 @@ export default function Home() {
                 type: "person",
                 position,
                 data: {
-                  label: person.name?.[0]?.toUpperCase() || "?",
+                  label: getTwoLetterInitials(person.name),
                   person,
                   gradientFrom: gradient.from,
                   gradientTo: gradient.to,
@@ -708,6 +728,7 @@ export default function Home() {
                   position,
                   data: {
                     ...(existing.data as PersonNodeData),
+                    label: getTwoLetterInitials(person.name),
                     person,
                     gradientFrom: gradient.from,
                     gradientTo: gradient.to,
@@ -718,7 +739,7 @@ export default function Home() {
                   type: "person",
                   position,
                   data: {
-                    label: person.name?.[0]?.toUpperCase() || "?",
+                    label: getTwoLetterInitials(person.name),
                     person,
                     gradientFrom: gradient.from,
                     gradientTo: gradient.to,
@@ -989,7 +1010,7 @@ export default function Home() {
       {/* Floating + button */}
       <button
         onClick={handleAddClick}
-        className="fixed bottom-8 right-8 h-14 w-14 rounded-full bg-red-600 text-white text-2xl font-light flex items-center justify-center shadow-lg hover:bg-red-700 transition-colors z-10"
+        className="fixed bottom-8 right-8 h-14 w-14 rounded-full bg-black text-white text-2xl font-light flex items-center justify-center shadow-lg hover:bg-gray-800 transition-colors z-10"
         aria-label="Add connection"
       >
         +
