@@ -1051,15 +1051,22 @@ export default function Home() {
                 if (e.key === "Escape") {
                   setSearchQuery("");
                   searchInputRef.current?.blur();
+                  return;
+                }
+                // If empty and Backspace/Delete is pressed, blur (secondary "escape" gesture)
+                if (!searchQuery && (e.key === "Backspace" || e.key === "Delete")) {
+                  searchInputRef.current?.blur();
                 }
               }}
               className="px-4 py-2 pr-20 bg-white border border-gray-300 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm w-64 text-gray-900 placeholder:text-gray-500"
               aria-label="Search people by name"
             />
-            {/* Backslash indicator */}
-            <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm font-mono pointer-events-none">
-              \
-            </div>
+            {/* Backslash indicator (only when input is empty so it never overlaps the X) */}
+            {!searchQuery && (
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm font-mono pointer-events-none">
+                \
+              </div>
+            )}
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
