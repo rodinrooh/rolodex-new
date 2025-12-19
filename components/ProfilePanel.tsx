@@ -45,6 +45,12 @@ export default function ProfilePanel({ person, onClose, onEventAdded, onPersonDe
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        // Don't close ProfilePanel if AddEventModal is open (let it handle Escape first)
+        const addEventModal = document.querySelector('[data-add-event-modal]');
+        if (addEventModal) {
+          return;
+        }
+        
         setIsClosing(true);
         setShouldAnimate(false);
         setTimeout(() => {

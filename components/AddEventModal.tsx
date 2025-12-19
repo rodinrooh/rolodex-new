@@ -52,6 +52,8 @@ export default function AddEventModal({
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        // Stop propagation so ProfilePanel doesn't also handle it
+        e.stopPropagation();
         setIsClosing(true);
         setShouldAnimate(false);
         setTimeout(() => {
@@ -60,12 +62,12 @@ export default function AddEventModal({
       }
     };
 
-    document.addEventListener("keydown", handleEscape);
+    document.addEventListener("keydown", handleEscape, true); // Use capture phase
     // Prevent body scroll when modal is open
     document.body.style.overflow = "hidden";
 
     return () => {
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("keydown", handleEscape, true);
       document.body.style.overflow = "unset";
     };
   }, [isOpen, onClose]);
@@ -120,6 +122,7 @@ export default function AddEventModal({
 
   return (
     <div
+      data-add-event-modal
       className={`fixed inset-0 z-50 flex items-center justify-center ${
         isOpen && !isClosing ? "opacity-100" : "opacity-0 pointer-events-none"
       } transition-opacity duration-300`}

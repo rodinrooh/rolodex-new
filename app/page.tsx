@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, Fragment } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef, Fragment } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -140,7 +140,7 @@ const fallbackNodes: Node<PersonNodeData>[] = [
     id: "fallback-user-center",
     type: "person",
     position: { x: 0, y: 0 },
-    data: { label: "US", isUser: true },
+    data: { label: "U", isUser: true },
     draggable: false,
   },
 ];
@@ -157,6 +157,67 @@ export default function Home() {
   const [hoveredNodePosition, setHoveredNodePosition] = useState<{ x: number; y: number } | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipTimeout, setTooltipTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Filter nodes and edges based on search query
+  const { filteredNodes, filteredEdges } = useMemo(() => {
+    if (!searchQuery.trim()) {
+      // No search query - return all nodes and edges as-is
+      return { filteredNodes: nodes, filteredEdges: edges };
+    }
+
+    const query = searchQuery.trim().toLowerCase();
+    
+    // Determine which nodes match the search
+    const matchingNodeIds = new Set<string>();
+    nodes.forEach((node) => {
+      // User center node always stays visible
+      if (node.data?.isUser) {
+        matchingNodeIds.add(node.id);
+      } else if (node.data?.person?.name) {
+        // Case-insensitive name matching
+        if (node.data.person.name.toLowerCase().includes(query)) {
+          matchingNodeIds.add(node.id);
+        }
+      }
+    });
+
+    // Filter nodes: matching nodes stay visible, non-matching get low opacity and become non-interactive
+    const filteredNodes = nodes.map((node) => {
+      const isMatch = matchingNodeIds.has(node.id);
+      return {
+        ...node,
+        style: {
+          ...node.style,
+          opacity: isMatch ? 1 : 0.15,
+        },
+        selectable: isMatch,
+        draggable: isMatch && node.draggable !== false,
+      };
+    });
+
+    // Filter edges: only show edges where both source and target are matching (or connected to user center)
+    const filteredEdges = edges.map((edge) => {
+      const sourceMatches = matchingNodeIds.has(edge.source);
+      const targetMatches = matchingNodeIds.has(edge.target);
+      const sourceIsUser = edge.source === "user-center" || edge.source === "fallback-user-center";
+      const targetIsUser = edge.target === "user-center" || edge.target === "fallback-user-center";
+      
+      // Show edge if both nodes match, or if one matches and the other is the user center
+      const shouldShow = (sourceMatches || sourceIsUser) && (targetMatches || targetIsUser);
+      
+      return {
+        ...edge,
+        style: {
+          ...edge.style,
+          opacity: shouldShow ? 1 : 0.15,
+        },
+      };
+    });
+
+    return { filteredNodes, filteredEdges };
+  }, [searchQuery, nodes, edges]);
 
   // Collision detection and bounce-back
   const NODE_RADIUS = 25; // 50px / 2
@@ -871,6 +932,81 @@ export default function Home() {
     }, 0);
   };
 
+  // Keyboard shortcuts: \ to focus search, Esc to clear search
+  // This must be before any early returns to maintain hook order
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if AddEventModal is open (it has a specific backdrop class)
+      const addEventModal = document.querySelector('[data-add-event-modal]');
+      const isAddEventModalOpen = addEventModal !== null;
+      
+      // Don't handle if user is typing in an input/textarea (except search input for Esc)
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        // If it's the search input itself, handle Esc
+        if (e.key === "Escape" && target === searchInputRef.current) {
+          setSearchQuery("");
+          searchInputRef.current?.blur();
+          e.preventDefault();
+        }
+        return;
+      }
+
+      // \ key to focus search bar
+      if (e.key === "\\" || e.key === "Backslash") {
+        // If AddEventModal is open, don't do anything (let it handle its own shortcuts)
+        if (isAddEventModalOpen) {
+          return;
+        }
+        
+        // If AddPersonModal is open, don't do anything
+        if (showAddModal) {
+          return;
+        }
+        
+        // If ProfilePanel is open, close it first
+        if (selectedPerson) {
+          setSelectedPerson(null);
+        }
+        
+        // Focus search input
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+          e.preventDefault();
+        }
+      }
+
+      // Esc key handling - prioritize closing top modal first
+      if (e.key === "Escape") {
+        // If AddEventModal is open, let it handle Esc (don't interfere)
+        if (isAddEventModalOpen) {
+          return;
+        }
+        
+        // If AddPersonModal is open, let it handle Esc
+        if (showAddModal) {
+          return;
+        }
+        
+        // If ProfilePanel is open, let it handle Esc
+        if (selectedPerson) {
+          return;
+        }
+        
+        // Otherwise, clear search if it has text
+        if (searchQuery) {
+          setSearchQuery("");
+          e.preventDefault();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedPerson, showAddModal, searchQuery]);
+
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -900,6 +1036,55 @@ export default function Home() {
         </div>
       )}
       
+      {/* Search input */}
+      {!isLoading && isLoaded && people.length > 0 && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="relative">
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                // Handle Esc in search input
+                if (e.key === "Escape") {
+                  setSearchQuery("");
+                  searchInputRef.current?.blur();
+                }
+              }}
+              className="px-4 py-2 pr-20 bg-white border border-gray-300 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm w-64 text-gray-900 placeholder:text-gray-500"
+              aria-label="Search people by name"
+            />
+            {/* Backslash indicator */}
+            <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm font-mono pointer-events-none">
+              \
+            </div>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                aria-label="Clear search"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      
       {/* Reset positions button */}
       {!isLoading && isLoaded && people.length > 0 && (
         <button
@@ -918,8 +1103,8 @@ export default function Home() {
           </div>
         ) : (
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={filteredNodes}
+            edges={filteredEdges}
             nodeTypes={nodeTypes}
             defaultEdgeOptions={defaultEdgeOptions}
             connectionLineType={ConnectionLineType.Bezier}
@@ -931,12 +1116,14 @@ export default function Home() {
             fitView
             className="bg-white"
             onNodeClick={(_, node) => {
-              if (node.data?.person && !node.data?.isUser) {
+              // Only allow clicking on matching nodes (non-matching nodes have selectable: false)
+              if (node.data?.person && !node.data?.isUser && node.selectable !== false) {
                 setSelectedPerson(node.data.person);
               }
             }}
               onNodeMouseEnter={(event, node) => {
-                if (node.data?.person && !node.data?.isUser) {
+                // Only show tooltip for matching nodes
+                if (node.data?.person && !node.data?.isUser && node.selectable !== false) {
                   // Clear any existing timeout
                   if (tooltipTimeout) {
                     clearTimeout(tooltipTimeout);
